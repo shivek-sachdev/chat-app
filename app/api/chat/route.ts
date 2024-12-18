@@ -2,25 +2,23 @@
 import { BedrockAgentRuntimeClient, InvokeAgentCommand } from "@aws-sdk/client-bedrock-agent-runtime";
 import { NextRequest, NextResponse } from 'next/server';
 
-const awsConfig = {
+const bedrockRuntimeClient = new BedrockAgentRuntimeClient({
   region: process.env.AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
   }
-};
+});
 
-const bedrockRuntimeClient = new BedrockAgentRuntimeClient(awsConfig);
-
-function cleanResponse(text: string): string {
-  text = text.replace(/"instruction":"[^"]*","result":/, '');
-  text = text.replace(/^{?"|"}?$/g, '');
-  text = text.replace(/\\"/g, '"');
-  text = text.replace(/\\\\/g, '\\');
-  return text;
+function cleanResponse(text: string) {
+  return text
+    .replace(/"instruction":"[^"]*","result":/, '')
+    .replace(/^{?"|"}?$/g, '')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\');
 }
 
-async function processStream(messageStream: any): Promise<string | null> {
+async function processStream(messageStream: any) {
   try {
     const stream = messageStream.options?.messageStream;
     if (!stream) {
@@ -30,78 +28,96 @@ async function processStream(messageStream: any): Promise<string | null> {
 
     for await (const chunk of stream) {
       if (chunk.body) {
-        const decoder = new TextDecoder();
-        const decodedData = decoder.decode(chunk.body);
-
         try {
+          const decoder = new TextDecoder();
+          const decodedData = decoder.decode(chunk.body);
+          console.log('Raw decoded data:', decodedData); // Debug log
+
           const parsedData = JSON.parse(decodedData);
+          console.log('Parsed data:', parsedData); // Debug log
+
           if (parsedData.bytes) {
-            const decodedText = Buffer.from(parsedData.bytes, 'base64').toString('utf-8');
             try {
-              const jsonResponse = JSON.parse(decodedText);
-              if (jsonResponse.result) {
-                let result = cleanResponse(jsonResponse.result);
-                // Fixed regular expression
-                if (result.match(/^\d+\./m)) {
-                  return result.split(/(?=\d+\.)/)  // Split on numbers followed by dots
-                    .map(item => item.trim())
-                    .filter(Boolean)
-                    .join('\n\n');
+              const decodedText = Buffer.from(parsedData.bytes, 'base64').toString('utf-8');
+              console.log('Decoded base64 text:', decodedText); // Debug log
+
+              // Handle the case where decodedText might already be the response
+              try {
+                const jsonResponse = JSON.parse(decodedText);
+                if (jsonResponse.result) {
+                  return cleanResponse(jsonResponse.result);
                 }
-                return result;
+              } catch (jsonError) {
+                // If parsing fails, the decodedText might be the direct response
+                return cleanResponse(decodedText);
               }
-            } catch (jsonError) {
-              return cleanResponse(decodedText);
+            } catch (base64Error) {
+              console.error('Base64 decoding error:', base64Error);
+              // Try to use the raw decoded data if base64 decoding fails
+              return cleanResponse(decodedData);
             }
+          } else if (parsedData.result) {
+            // Handle case where response might be directly in parsedData
+            return cleanResponse(parsedData.result);
+          } else if (typeof parsedData === 'string') {
+            // Handle case where the response might be a direct string
+            return cleanResponse(parsedData);
           }
-        } catch (e) {
-          console.error('Error processing chunk:', e);
+        } catch (chunkError) {
+          console.error('Chunk processing error:', chunkError);
+          console.error('Raw chunk data:', chunk.body);
+          // Try to decode and return the raw chunk as a fallback
+          try {
+            const rawText = new TextDecoder().decode(chunk.body);
+            return cleanResponse(rawText);
+          } catch (decodeError) {
+            console.error('Raw decode error:', decodeError);
+          }
         }
       }
     }
     return null;
   } catch (error) {
-    console.error('Error in stream processing:', error);
+    console.error('Stream processing error:', error);
     return null;
   }
 }
 
-export interface ChatRequest {
-  message: string;
-  sessionId: string;
-}
-
 export async function POST(req: NextRequest) {
   try {
-    const { message, sessionId } = await req.json() as ChatRequest;
+    const { message, sessionId } = await req.json();
 
-    const input = {
+    const command = new InvokeAgentCommand({
       agentId: process.env.AGENT_ID,
       agentAliasId: process.env.AGENT_ALIAS_ID,
       sessionId: sessionId,
       inputText: message.trim()
-    };
+    });
 
-    const command = new InvokeAgentCommand(input);
     const response = await bedrockRuntimeClient.send(command);
+    console.log('Raw Bedrock response:', response); // Debug log
 
-    let responseText: string | null = null;
-    
+    let responseText = null;
+
     if (response.completion) {
+      console.log('Completion type:', typeof response.completion); // Debug log
+      console.log('Completion content:', response.completion); // Debug log
+
       if (typeof response.completion === 'string') {
         responseText = cleanResponse(response.completion);
-      } else if (response.completion instanceof Object) {
+      } else {
         responseText = await processStream(response.completion);
       }
     }
 
-    if (!responseText || !responseText.trim()) {
-      return NextResponse.json({ error: "Couldn't generate a meaningful response" }, { status: 400 });
+    if (!responseText) {
+      console.log('No response text generated'); // Debug log
+      return NextResponse.json({ error: "Couldn't generate a response" }, { status: 400 });
     }
 
     return NextResponse.json({ response: responseText.trim() });
   } catch (error) {
-    console.error('Error processing message:', error);
-    return NextResponse.json({ error: "An error occurred while processing your message" }, { status: 500 });
+    console.error('Request error:', error);
+    return NextResponse.json({ error: "An error occurred" }, { status: 500 });
   }
 }
