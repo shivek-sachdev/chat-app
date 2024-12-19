@@ -16,8 +16,8 @@ interface ApiResponse {
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -36,7 +36,13 @@ const ChatInterface = () => {
     setInput('');
     setIsLoading(true);
 
-    setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    // Add user message
+    const userMessageObj: Message = {
+      role: 'user',
+      content: userMessage,
+    };
+    
+    setMessages((prev) => [...prev, userMessageObj]);
 
     try {
       const response = await fetch('/api/chat', {
@@ -52,14 +58,23 @@ const ChatInterface = () => {
 
       const data: ApiResponse = await response.json();
 
-      if (data.error) {
-        setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
-      } else if (data.response) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
-      }
+      // Add assistant message
+      const assistantMessageObj: Message = {
+        role: 'assistant',
+        content: data.error || data.response || 'Sorry, I encountered an error. Please try again.',
+      };
+      
+      setMessages((prev) => [...prev, assistantMessageObj]);
+
     } catch (error) {
+      // Add error message
+      const errorMessageObj: Message = {
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.',
+      };
+      
+      setMessages((prev) => [...prev, errorMessageObj]);
       console.error('Error sending message:', error);
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
       setIsLoading(false);
     }
