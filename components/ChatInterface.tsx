@@ -79,13 +79,25 @@ const ModernChatInterface = () => {
   };
 
   // Custom components for ReactMarkdown
-  const MarkdownComponents = {
-    p: ({ children }) => <p className="mb-1">{children}</p>,
-    strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-    em: ({ children }) => <em className="italic">{children}</em>,
-    ul: ({ children }) => <ul className="list-disc ml-4 space-y-0.5">{children}</ul>,
-    ol: ({ children }) => <ol className="list-decimal ml-4 space-y-0.5">{children}</ol>,
-    li: ({ children }) => <li className="leading-tight">{children}</li>,
+  const MarkdownComponents: object = {
+    p: ({ children }: { children: React.ReactNode }) => (
+      <p className="mb-1">{children}</p>
+    ),
+    strong: ({ children }: { children: React.ReactNode }) => (
+      <strong className="font-bold">{children}</strong>
+    ),
+    em: ({ children }: { children: React.ReactNode }) => (
+      <em className="italic">{children}</em>
+    ),
+    ul: ({ children }: { children: React.ReactNode }) => (
+      <ul className="list-disc ml-4 space-y-0.5">{children}</ul>
+    ),
+    ol: ({ children }: { children: React.ReactNode }) => (
+      <ol className="list-decimal ml-4 space-y-0.5">{children}</ol>
+    ),
+    li: ({ children }: { children: React.ReactNode }) => (
+      <li className="leading-tight">{children}</li>
+    ),
   };
 
   return (
