@@ -36,7 +36,7 @@ async function processStream(messageStream: StreamResponse): Promise<string | nu
         const decoder = new TextDecoder();
         const decodedData = decoder.decode(chunk.body);
         const parsedData = JSON.parse(decodedData) as { bytes?: string };
-        
+
         if (parsedData.bytes) {
           const decodedText = Buffer.from(parsedData.bytes, 'base64').toString('utf-8');
           try {
