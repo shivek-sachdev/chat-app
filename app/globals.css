@@ -3,19 +3,34 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Brand Colors */
+  --primary-blue: #283178;   /* Dark Blue */
+  --primary-green: #57c1a9;  /* Brand Green */
+  --background: #ffffff;     /* White */
+  --foreground: #283178;     /* Using brand blue for text */
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Custom utility classes for brand colors */
+@layer utilities {
+  .bg-brand-blue {
+    background-color: var(--primary-blue);
+  }
+  
+  .bg-brand-green {
+    background-color: var(--primary-green);
+  }
+  
+  .text-brand-blue {
+    color: var(--primary-blue);
+  }
+  
+  .text-brand-green {
+    color: var(--primary-green);
+  }
 }
