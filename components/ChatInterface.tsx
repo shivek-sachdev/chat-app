@@ -164,7 +164,7 @@ const ModernChatInterface = () => {
           <div className="flex items-center space-x-2">
             <MessageCircle className="w-6 h-6 text-[#283178]" />
             <h1 className="text-xl font-semibold text-[#283178]">
-              BioBlend+ ผู้ช่วยตอบคำถาม
+              BioBlend Buddy
             </h1>
           </div>
         </div>
